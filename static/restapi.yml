@@ -1,0 +1,83 @@
+---
+openapi: 3.0.3
+info:
+  title: plat challenge
+  version: 1.3.0
+  description: halo ini adalah analysis sentiment
+  contact:
+    name: fajar
+    email: 
+    url: 
+  license:
+    name: APACHE 2.0
+    url: htpps://www.apache.org/licenses/LICENSE-2.0
+servers:
+- description: binar-plat
+  url: "/"
+externalDocs:
+  description: plat Challenge'
+tags:
+- name: Welcome Page
+  description: sentiment
+- name: Text 
+  description: Input text 
+paths:
+  "/":
+    get:
+      tags:
+      - Welcome Page
+      summary: Welcome Page
+      description: Welcome!
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Misunderstood
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+  "/textNN":
+    post:
+      tags:
+      - Text sentiments
+      summary: testimonio
+      description: Post a text file 
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Misunderstood
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+  "/fileNN":
+    post:
+      tags:
+      - File 
+      summary: Post a csv file
+      description: Post a csv file 
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: base64
