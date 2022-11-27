@@ -18,7 +18,15 @@ import re
 import json
 from pprint import pprint
 from sklearn.preprocessing import LabelEncoder
-# import pandas as pd
+import nltk 
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+from keras.models import load_model
+import tensorflow as tf
+from nltk import word_tokenize
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing import sequence
 
 # df = pd.read_csv("data/preproccesed.csv")
 
@@ -50,9 +58,9 @@ app.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 conn = sqlite3.connect('record.db', check_same_thread=False)
 conn.execute('''CREATE TABLE IF NOT EXISTS record(text varchar(255), text_clean varchar(255));''')
-
+conn.execute('''CREATE TABLE IF NOT EXISTS record_file(text varchar(255), text_clean varchar(255), sentiment varchar(255));''')
 MODEL = joblib.load('mlpc.pkl')
-# MODEL_LABELS = ['tweet', 'label']
+MODELTF = load_model('tfmodel.h5')
 
 
 
@@ -71,9 +79,13 @@ def get():
 
 # @swag_from("docs/hint.yml", methods=['POST'])
 tfidf_vectorizer = joblib.load('feature.pkl') 
+tfidf_vectorizerTF = joblib.load('featuretensorflow.pkl') 
+vocab_size = 5000
+max_length = 200
+oov_tok = '<OOV>'
+tokenizer = Tokenizer(num_words = vocab_size, oov_token=oov_tok)
 
 @app.route('/textNN', methods=['POST'])
-
 # NN processing
 def text_sentimentNN():
 
@@ -97,35 +109,73 @@ def text_sentimentNN():
     response_data = jsonify(json_response)
     return response_data
 
+@app.route('/textTF', methods=['POST'])
+# TF processing
+def text_sentimentTF():
 
-@app.route('/fileNN', methods=['POST'])
-def upload_fileNN():
+    text = request.form.get('text').lower()
+    clean_text = cleaning(text)
+    sent = MODELTF.predict(tfidf_vectorizerTF.transform([clean_text]).toarray())
+    query = "INSERT INTO record (text, text_clean) VALUES (?,?)"
+    val = (clean_text , str(sent))
+    conn.execute(query , val)
+    conn.commit() 
 
-    file = request.files['file']
-    data = pd.read_csv(file, encoding='iso-8859-1')
-    data_list = data.values.tolist()
-    clean_data_list = []
-    # print (column)
-
-    for i in data_list:
-        clean_data_list.append(re.sub(r'[^a-z0-9]',' ',data_list[i]))
-        query_text = "insert into data(text,text_clean) values(?,?)"
-        val = (data,clean_data_list)
-        conn.execute(query_text , val)
-        conn.commit
-
-    #Define response API
+           
     json_response={
         'status_code': 200,
         'description': 'text cleanse',
-        'text': [clean_data_list], 
-        # 'sentiment' : (label),
+        'text': clean_text, 
+        'sentiment' : str(sent),
+    }
+    response_data = jsonify(json_response)
+    return response_data
+
+@app.route('/fileNN', methods=['POST'])
+def file_cleaningNN():
+
+    # Get file
+    file = request.files['file']
+    try:
+            datacsv = pd.read_csv(file, encoding='iso-8859-1')
+    except:
+            datacsv = pd.read_csv(file, encoding='utf-8')
+    
+    # Cleaning file
+    file_csvNN(datacsv)
+
+    # file_cleaning(sent)
+
+    # Define API response
+    select_data = conn.execute("SELECT * FROM record_file")
+    conn.commit
+    data = [
+        dict( text=row[0], text_clean=row[1] , sentiment = row[2])
+    for row  in select_data.fetchall()
+    ]
+    
+    json_response={
+        'status_code': 200,
+        'description': 'text cleanse',
+        'text': data, 
         
     }
     response_data = jsonify(json_response)
     return response_data
 
+def file_csvNN(input_file):
+    column = input_file.iloc[:, 0]
+    print(column)
 
+    for data_file in column: # Define and execute query for insert original text and cleaned text to sqlite database
+        data_clean = cleaning(data_file)
+        sent = MODEL.predict(tfidf_vectorizer.transform([data_clean]).toarray()).tolist()
+        sent_dumb = json.dumps(sent)
+        query = "insert into record_file (text,text_clean ,sentiment) values (?,?,?)"
+        val = (data_file, data_clean ,sent_dumb )
+        conn.execute(query, val)
+        conn.commit()
+        print(data_file , data_clean , sent_dumb)
 
 def cleaning(text):
     result = re.sub(r'(RT\s@[A-Za-z]+[A-Za-z0-9-_]+)', '', text)

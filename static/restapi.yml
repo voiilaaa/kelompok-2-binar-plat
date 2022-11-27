@@ -42,7 +42,33 @@ paths:
   "/textNN":
     post:
       tags:
-      - Text sentiments
+      - Text sentiments NN
+      summary: testimonio
+      description: Post a text file 
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Misunderstood
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
+  "/textTF":
+    post:
+      tags:
+      - Text sentiments TF
       summary: testimonio
       description: Post a text file 
       requestBody:
@@ -68,7 +94,7 @@ paths:
   "/fileNN":
     post:
       tags:
-      - File 
+      - File Sentimen NN
       summary: Post a csv file
       description: Post a csv file 
       requestBody:
@@ -81,3 +107,41 @@ paths:
                 file:
                   type: string
                   format: base64
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Misunderstood
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error    
+  "/fileTF":
+    post:
+      tags:
+      - File Sentiment TF
+      summary: Post a csv file
+      description: Post a csv file 
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: base64
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Misunderstood
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Server Error
