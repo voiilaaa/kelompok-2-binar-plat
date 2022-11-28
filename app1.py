@@ -28,6 +28,8 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing import sequence
 
+# import pandas as pd
+
 # df = pd.read_csv("data/preproccesed.csv")
 
 # In[ ]:
@@ -51,16 +53,22 @@ SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
     SWAGGER_URL,
     API_URL,
     config={
-        'app_name': "selamat datang regina"
+        'app_name': "Sentiment Analysis"
     }
 )
 app.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 conn = sqlite3.connect('record.db', check_same_thread=False)
-conn.execute('''CREATE TABLE IF NOT EXISTS record(text varchar(255), text_clean varchar(255));''')
-conn.execute('''CREATE TABLE IF NOT EXISTS record_file(text varchar(255), text_clean varchar(255), sentiment varchar(255));''')
+# conn.execute('''DROP TABLE record;''')
+conn.execute('''CREATE TABLE IF NOT EXISTS record(id INTEGER PRIMARY KEY AUTOINCREMENT ,text varchar(255), text_clean varchar(255));''')
+# conn.execute('''DROP TABLE record_file;''')
+
+conn.execute('''CREATE TABLE IF NOT EXISTS record_file(id INTEGER PRIMARY KEY AUTOINCREMENT ,text varchar(255), text_clean varchar(255), sentiment varchar(255));''')
+
 MODEL = joblib.load('mlpc.pkl')
 MODELTF = load_model('tfmodel.h5')
+MODELTF1 = load_model('lstm_model.h5')
+
 
 
 
@@ -77,7 +85,6 @@ def get():
 
 # In[17]:
 
-# @swag_from("docs/hint.yml", methods=['POST'])
 tfidf_vectorizer = joblib.load('feature.pkl') 
 tfidf_vectorizerTF = joblib.load('featuretensorflow.pkl') 
 vocab_size = 5000
@@ -85,15 +92,15 @@ max_length = 200
 oov_tok = '<OOV>'
 tokenizer = Tokenizer(num_words = vocab_size, oov_token=oov_tok)
 
+# tf.keras.preprocessing.sequence.pad_sequences(sequence)
+
 @app.route('/textNN', methods=['POST'])
 # NN processing
 def text_sentimentNN():
 
     text = request.form.get('text').lower()
     clean_text = cleaning(text)
-    # fitur = tfidf_vectorizer([clean_text])
     sent = MODEL.predict(tfidf_vectorizer.transform([clean_text]).toarray())
-    # sent = str(MODEL.predict(fitur)[0])
     query = "INSERT INTO record (text, text_clean) VALUES (?,?)"
     val = (clean_text , str(sent))
     conn.execute(query , val)
@@ -109,27 +116,49 @@ def text_sentimentNN():
     response_data = jsonify(json_response)
     return response_data
 
-@app.route('/textTF', methods=['POST'])
+    return x
+# Function for text cleansing
+
+@app.route('/textLSTM', methods=['POST'])
 # TF processing
 def text_sentimentTF():
 
     text = request.form.get('text').lower()
     clean_text = cleaning(text)
-    sent = MODELTF.predict(tfidf_vectorizerTF.transform([clean_text]).toarray())
+
+    sent = MODELTF1.predict(tfidf_vectorizerTF.fit_transform([clean_text]).toarray())
+    labels = ['positive','negative', 'neutral']
+    sent3 = labels[np.argmax(sent)]
     query = "INSERT INTO record (text, text_clean) VALUES (?,?)"
-    val = (clean_text , str(sent))
+    val = (clean_text , str(sent3))
     conn.execute(query , val)
     conn.commit() 
 
-           
     json_response={
         'status_code': 200,
         'description': 'text cleanse',
         'text': clean_text, 
-        'sentiment' : str(sent),
+        'sentiment' : str(sent3),
     }
     response_data = jsonify(json_response)
     return response_data
+
+
+# Function for csv cleansing
+def file_csvNN(input_file):
+    column = input_file.iloc[:, 0]
+    print(column)
+
+    for data_file in column: # Define and execute query for insert original text and cleaned text to sqlite database
+        data_clean = cleaning(data_file)
+        sent = MODEL.predict(tfidf_vectorizer.transform([data_clean]).toarray()).tolist()
+        sent_dumb = json.dumps(sent)
+        query = "insert into record_file (text,text_clean ,sentiment) values (?,?,?)"
+        val = (data_file, data_clean ,sent_dumb )
+        conn.execute(query, val)
+        conn.commit()
+        print(data_file , data_clean , sent_dumb)
+        
 
 @app.route('/fileNN', methods=['POST'])
 def file_cleaningNN():
@@ -144,13 +173,11 @@ def file_cleaningNN():
     # Cleaning file
     file_csvNN(datacsv)
 
-    # file_cleaning(sent)
-
     # Define API response
-    select_data = conn.execute("SELECT * FROM record_file")
+    select_data = conn.execute("SELECT * FROM record_file ORDER BY id DESC limit 5")
     conn.commit
     data = [
-        dict( text=row[0], text_clean=row[1] , sentiment = row[2])
+        dict( id=row[0] , text=row[1], text_clean=row[2] , sentiment = row[3])
     for row  in select_data.fetchall()
     ]
     
@@ -163,33 +190,77 @@ def file_cleaningNN():
     response_data = jsonify(json_response)
     return response_data
 
-def file_csvNN(input_file):
+def file_csvTF(input_file):
     column = input_file.iloc[:, 0]
     print(column)
 
     for data_file in column: # Define and execute query for insert original text and cleaned text to sqlite database
         data_clean = cleaning(data_file)
-        sent = MODEL.predict(tfidf_vectorizer.transform([data_clean]).toarray()).tolist()
-        sent_dumb = json.dumps(sent)
+        sent = MODELTF1.predict(tfidf_vectorizer.fit_transform([data_clean]).toarray()).tolist()
+        labels = ['positive','negative', 'neutral']
+
+        sent3 = labels[np.argmax(sent)]
+        sent_dumb = json.dumps(sent3)
         query = "insert into record_file (text,text_clean ,sentiment) values (?,?,?)"
-        val = (data_file, data_clean ,sent_dumb )
+        val = (data_file, data_clean ,sent3 )
         conn.execute(query, val)
         conn.commit()
-        print(data_file , data_clean , sent_dumb)
+        print(data_file , data_clean , sent3)
+        
+
+@app.route('/fileLSTM', methods=['POST'])
+def file_cleaningTF():
+
+    # Get file
+    file = request.files['file']
+    try:
+            datacsv = pd.read_csv(file, encoding='iso-8859-1')
+    except:
+            datacsv = pd.read_csv(file, encoding='utf-8')
+    
+    # Cleaning file
+    file_csvTF(datacsv)
+
+    # Define API response
+    select_data = conn.execute("SELECT * FROM record_file ORDER BY id DESC limit 5 ")
+    conn.commit
+    data = [
+        dict(  id=row[0], text=row[1], text_clean=row[2] , sentiment = row[3])
+    for row  in select_data.fetchall()
+    ]
+    
+    json_response={
+        'status_code': 200,
+        'description': 'text cleanse',
+        'text': data, 
+        
+    }
+    response_data = jsonify(json_response)
+    return response_data
+
+
+def regex(text):
+    text = re.sub('\s', ' ', text)
+    text = re.sub('rt', ' ', text)
+    text = re.sub('RT', ' ', text)
+    text = re.sub('user', ' ', text)
+    text = re.sub('USER', ' ', text)
+    text = re.sub('[^a-zA-Z]+', ' ', text)
+    text = re.sub('((www.[^\s]+)|(https?://[^\s]+)|(http?://[^\s]+))', ' ', text)
+    text = re.sub(r'xfxfxx[\s]+', ' ', text)
+    text = re.sub(r'wk[\s]+', ' ', text)
+    text = re.sub('0-9', ' ', text)
+
+    return text
+
+def lowercase(text):
+    return text.lower()
 
 def cleaning(text):
-    result = re.sub(r'(RT\s@[A-Za-z]+[A-Za-z0-9-_]+)', '', text)
-    result = re.sub(r'(@[A-Za-z0-9-_]+)', '', result)
-    result = re.sub(r'http\S+', '', result)
-    result = re.sub(r'bit.ly/\S+', '', result) 
-    result = re.sub(r'&[\S]+?;', '', result)    
-    result = re.sub(r'#', ' ', result)
-    result = re.sub(r'[^\w\s]', r'', result)    
-    result = re.sub(r'\w*\d\w*', r'', result)
-    result = re.sub(r'\s\s+', ' ', result)
-    result = re.sub(r'(\A\s+|\s+\Z)', '', result)      
-    
-    return result
+    text = regex(text)
+    text = lowercase(text)
+
+    return text
 
 if __name__ == "__main__":
     app.run(debug=True)
