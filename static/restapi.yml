@@ -1,32 +1,32 @@
 ---
 openapi: 3.0.3
 info:
-  title: plat challenge
+  title: Sentiment Tweet Using Model Machine Learning 
   version: 1.3.0
-  description: halo ini adalah analysis sentiment
+  description: This API aim to predict review sentiment tweet using both Neural Network and LSTM as model machine learning
   contact:
-    name: fajar
+    name: Fajar R , Fiki A , Regina A
     email: 
     url: 
   license:
     name: APACHE 2.0
     url: htpps://www.apache.org/licenses/LICENSE-2.0
 servers:
-- description: binar-plat
+- description: Project Binar
   url: "/"
 externalDocs:
-  description: plat Challenge'
+  description: 
 tags:
-- name: Welcome Page
+- name: Dashboard
   description: sentiment
-- name: Text 
-  description: Input text 
+# - name: Text 
+#   description: Input text 
 paths:
   "/":
     get:
       tags:
-      - Welcome Page
-      summary: Welcome Page
+      - Try This!!!
+      summary: 
       description: Welcome!
       responses:
         '200':
@@ -42,8 +42,8 @@ paths:
   "/textNN":
     post:
       tags:
-      - Text sentiments NN
-      summary: testimonio
+      - Text sentiments Neural Network
+      summary: input text
       description: Post a text file 
       requestBody:
         required: true
@@ -65,11 +65,11 @@ paths:
           description: Not Found
         '500':
           description: Server Error
-  "/textTF":
+  "/textLSTM":
     post:
       tags:
-      - Text sentiments TF
-      summary: testimonio
+      - Text sentiments LSTM
+      summary: input text
       description: Post a text file 
       requestBody:
         required: true
@@ -94,8 +94,8 @@ paths:
   "/fileNN":
     post:
       tags:
-      - File Sentimen NN
-      summary: Post a csv file
+      - File Sentimen Neural Network
+      summary: input csv file
       description: Post a csv file 
       requestBody:
         required: true
@@ -118,11 +118,11 @@ paths:
           description: Not Found
         '500':
           description: Server Error    
-  "/fileTF":
+  "/fileLSTM":
     post:
       tags:
-      - File Sentiment TF
-      summary: Post a csv file
+      - File Sentiment LSTM
+      summary: input csv file 
       description: Post a csv file 
       requestBody:
         required: true

@@ -28,22 +28,9 @@ from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing import sequence
 
-# import pandas as pd
 
-# df = pd.read_csv("data/preproccesed.csv")
 
-# In[ ]:
 
-# model NN
-
-# In[16]:
-# class DeliveryEncoder(json.JSONEncoder):
-# 	def default(self, obj):
-		
-# 		if isinstance(obj, Delivery):
-# 			return { 'to' : obj.to,  'from' : obj.fr }
-
-# 		return json.JSONEncoder.default(self, obj) # default, if not Delivery object. Caller's problem if this is not serialziable.
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False 
@@ -68,6 +55,7 @@ conn.execute('''CREATE TABLE IF NOT EXISTS record_file(id INTEGER PRIMARY KEY AU
 MODEL = joblib.load('mlpc.pkl')
 MODELTF = load_model('tfmodel.h5')
 MODELTF1 = load_model('lstm_model.h5')
+MODELTF2 = load_model('lstmmodelrenewal.h5')
 
 
 
@@ -126,8 +114,8 @@ def text_sentimentTF():
     text = request.form.get('text').lower()
     clean_text = cleaning(text)
 
-    sent = MODELTF1.predict(tfidf_vectorizerTF.fit_transform([clean_text]).toarray())
-    labels = ['positive','negative', 'neutral']
+    sent = MODELTF2.predict(tfidf_vectorizerTF.fit_transform([clean_text]).toarray())
+    labels = ['negative','neutral', 'positive']
     sent3 = labels[np.argmax(sent)]
     query = "INSERT INTO record (text, text_clean) VALUES (?,?)"
     val = (clean_text , str(sent3))
@@ -196,11 +184,11 @@ def file_csvTF(input_file):
 
     for data_file in column: # Define and execute query for insert original text and cleaned text to sqlite database
         data_clean = cleaning(data_file)
-        sent = MODELTF1.predict(tfidf_vectorizer.fit_transform([data_clean]).toarray()).tolist()
-        labels = ['positive','negative', 'neutral']
+        sent = MODELTF2.predict(tfidf_vectorizerTF.fit_transform([data_clean]).toarray()).tolist()
+        labels = ['negative','neutral', 'positive']
 
         sent3 = labels[np.argmax(sent)]
-        sent_dumb = json.dumps(sent3)
+        # sent_dumb = json.dumps(sent3)
         query = "insert into record_file (text,text_clean ,sentiment) values (?,?,?)"
         val = (data_file, data_clean ,sent3 )
         conn.execute(query, val)
