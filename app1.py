@@ -228,25 +228,25 @@ def file_cleaningTF():
 
 
 def regex(text):
+    text = re.sub('xf', ' ', text)
+    text = re.sub('(x\d\w)', ' ', text)
     text = re.sub('\s', ' ', text)
     text = re.sub('rt', ' ', text)
-    text = re.sub('RT', ' ', text)
     text = re.sub('user', ' ', text)
-    text = re.sub('USER', ' ', text)
     text = re.sub('[^a-zA-Z]+', ' ', text)
     text = re.sub('((www.[^\s]+)|(https?://[^\s]+)|(http?://[^\s]+))', ' ', text)
-    text = re.sub(r'xfxfxx[\s]+', ' ', text)
     text = re.sub(r'wk[\s]+', ' ', text)
     text = re.sub('0-9', ' ', text)
 
+    
     return text
 
 def lowercase(text):
     return text.lower()
 
 def cleaning(text):
-    text = regex(text)
     text = lowercase(text)
+    text = regex(text)
 
     return text
 
