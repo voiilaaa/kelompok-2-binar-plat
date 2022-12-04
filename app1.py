@@ -52,10 +52,8 @@ conn.execute('''CREATE TABLE IF NOT EXISTS record(id INTEGER PRIMARY KEY AUTOINC
 
 conn.execute('''CREATE TABLE IF NOT EXISTS record_file(id INTEGER PRIMARY KEY AUTOINCREMENT ,text varchar(255), text_clean varchar(255), sentiment varchar(255));''')
 
-MODEL = joblib.load('mlpc.pkl')
-MODELTF = load_model('tfmodel.h5')
-MODELTF1 = load_model('lstm_model.h5')
-MODELTF2 = load_model('lstmmodelrenewal.h5')
+MODELNN = joblib.load('mlpc.pkl')
+MODELLSTM = load_model('lstmmodelrenewal.h5')
 
 
 
@@ -80,7 +78,6 @@ max_length = 200
 oov_tok = '<OOV>'
 tokenizer = Tokenizer(num_words = vocab_size, oov_token=oov_tok)
 
-# tf.keras.preprocessing.sequence.pad_sequences(sequence)
 
 @app.route('/textNN', methods=['POST'])
 # NN processing
@@ -88,7 +85,7 @@ def text_sentimentNN():
 
     text = request.form.get('text').lower()
     clean_text = cleaning(text)
-    sent = MODEL.predict(tfidf_vectorizer.transform([clean_text]).toarray())
+    sent = MODELNN.predict(tfidf_vectorizer.transform([clean_text]).toarray())
     query = "INSERT INTO record (text, text_clean) VALUES (?,?)"
     val = (clean_text , str(sent))
     conn.execute(query , val)
@@ -114,9 +111,10 @@ def text_sentimentTF():
     text = request.form.get('text').lower()
     clean_text = cleaning(text)
 
-    sent = MODELTF2.predict(tfidf_vectorizerTF.fit_transform([clean_text]).toarray())
+    sent = MODELLSTM.predict(tfidf_vectorizerTF.fit_transform([clean_text]).toarray())
     labels = ['negative','neutral', 'positive']
-    sent3 = labels[np.argmax(sent)]
+    # sent3 = labels[np.argmax(sent)]
+    sent3 = labels[np.argmax(sent[0])]
     query = "INSERT INTO record (text, text_clean) VALUES (?,?)"
     val = (clean_text , str(sent3))
     conn.execute(query , val)
@@ -139,7 +137,7 @@ def file_csvNN(input_file):
 
     for data_file in column: # Define and execute query for insert original text and cleaned text to sqlite database
         data_clean = cleaning(data_file)
-        sent = MODEL.predict(tfidf_vectorizer.transform([data_clean]).toarray()).tolist()
+        sent = MODELNN.predict(tfidf_vectorizer.transform([data_clean]).toarray()).tolist()
         sent_dumb = json.dumps(sent)
         query = "insert into record_file (text,text_clean ,sentiment) values (?,?,?)"
         val = (data_file, data_clean ,sent_dumb )
@@ -184,7 +182,7 @@ def file_csvTF(input_file):
 
     for data_file in column: # Define and execute query for insert original text and cleaned text to sqlite database
         data_clean = cleaning(data_file)
-        sent = MODELTF2.predict(tfidf_vectorizerTF.fit_transform([data_clean]).toarray()).tolist()
+        sent = MODELLSTM.predict(tfidf_vectorizerTF.fit_transform([data_clean]).toarray()).tolist()
         labels = ['negative','neutral', 'positive']
 
         sent3 = labels[np.argmax(sent)]
